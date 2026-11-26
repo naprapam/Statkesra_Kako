@@ -1,0 +1,159 @@
+Option Explicit
+
+Public Sub PotongDataKonsumsi()
+
+    Dim wbSumber As Workbook
+    Dim wbOutput As Workbook
+
+    Dim wsSumber As Worksheet
+    Dim wsOutput As Worksheet
+
+    Dim filePath As Variant
+
+    Dim keyword As String
+
+    Dim r As Long
+    Dim lastRow As Long
+
+    Dim startRow As Long
+    Dim endRow As Long
+
+    Dim savePath As String
+    Dim folderPath As String
+
+    keyword = Trim(InputBox( _
+        "Masukkan kode atau nama kabupaten/kota" & vbCrLf & _
+        "Contoh: 6305 atau TAPIN", _
+        "Potong Data Konsumsi"))
+
+    If keyword = "" Then Exit Sub
+
+    filePath = Application.GetOpenFilename( _
+        "Excel Files (*.xlsx), *.xlsx")
+
+    If filePath = False Then Exit Sub
+
+    Application.ScreenUpdating = False
+
+    Set wbSumber = Workbooks.Open(filePath, ReadOnly:=True)
+
+    Set wbOutput = Workbooks.Add
+
+    wbOutput.Worksheets(1).Name = "TEMP"
+
+    For Each wsSumber In wbSumber.Worksheets
+
+        If wsSumber.Name <> "NoNum" _
+        And wsSumber.Name <> "NoNuma" _
+        And wsSumber.Name <> "NoNumb" Then
+
+            GoTo NextSheet
+
+        End If
+
+        lastRow = wsSumber.Cells.Find( _
+                    "*", , , , _
+                    xlByRows, _
+                    xlPrevious).Row
+
+        startRow = 0
+        endRow = 0
+
+        ' Cari TAPIN
+        For r = 1 To lastRow
+
+            If InStr( _
+                1, _
+                UCase(CStr(wsSumber.Cells(r, 1).Value)), _
+                UCase(keyword)) > 0 Then
+
+                ' mundur ke judul
+                Dim x As Long
+
+                For x = r To 1 Step -1
+
+                    If InStr( _
+                        1, _
+                        UCase(CStr(wsSumber.Cells(x, 1).Value)), _
+                        "RATA-RATA") > 0 Then
+
+                        startRow = x
+                        Exit For
+
+                    End If
+
+                Next x
+
+                ' maju ke sumber
+                For x = r To lastRow
+
+                    If InStr( _
+                        1, _
+                        UCase(CStr(wsSumber.Cells(x, 1).Value)), _
+                        "SUMBER") > 0 Then
+
+                        endRow = x
+                        Exit For
+
+                    End If
+
+                Next x
+
+                Exit For
+
+            End If
+
+        Next r
+
+        If startRow > 0 _
+        And endRow > 0 Then
+
+            Set wsOutput = _
+                wbOutput.Worksheets.Add( _
+                After:=wbOutput.Worksheets( _
+                wbOutput.Worksheets.Count))
+
+            wsOutput.Name = wsSumber.Name
+
+            wsSumber.Rows( _
+                startRow & ":" & endRow).Copy _
+                wsOutput.Rows(1)
+
+        End If
+
+NextSheet:
+
+    Next wsSumber
+
+    Application.DisplayAlerts = False
+
+    On Error Resume Next
+    wbOutput.Worksheets("TEMP").Delete
+    On Error GoTo 0
+
+    Application.DisplayAlerts = True
+
+    folderPath = Left( _
+        CStr(filePath), _
+        InStrRev( _
+        CStr(filePath), "\"))
+
+    savePath = _
+        folderPath & _
+        "Data_Potong_Konsumsi.xlsx"
+
+    wbOutput.SaveAs savePath
+
+    wbOutput.Close True
+    wbSumber.Close False
+
+    Application.ScreenUpdating = True
+
+    MsgBox _
+        "Selesai." & vbCrLf & _
+        savePath, _
+        vbInformation
+
+End Sub
+
+
